@@ -17,5 +17,6 @@
     <field index="10" term="http://rs.tdwg.org/dwc/terms/coordinateUncertaintyInMeters"/>
     <field index="11" term="http://rs.tdwg.org/dwc/terms/countryCode"/>
     <field index="12" term="http://rs.tdwg.org/dwc/terms/dataGeneralizations"/>
+    <field default="WGS84" term="http://rs.tdwg.org/dwc/terms/geodeticDatum"/>
   </core>
 </archive>
