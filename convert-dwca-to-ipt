@@ -1,0 +1,9 @@
+#!/bin/bash -e
+
+for i in $*; do
+    echo "Converting $i"
+
+    mvn exec:java -Dexec.mainClass=org.gbif.ipt.batch.IptBulkImport -Dexec.args=$i
+
+    echo
+done

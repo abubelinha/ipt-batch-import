@@ -8,21 +8,17 @@
     <version>37</version>
   </parent>
 
-  <artifactId>watchdog</artifactId>
+  <artifactId>ipt-batch-import</artifactId>
   <packaging>jar</packaging>
   <version>1.0-SNAPSHOT</version>
 
-  <name>watchdog</name>
-  <description>Project functioning as a watchful guardian of content in the GBIF network, especially against datasets going offline.</description>
-  <url>http://maven.apache.org</url>
+  <name>ipt-batch-import</name>
+  <description>Scripted creation of IPT data directories.</description>
 
   <properties>
-    <checklistbank-ws-client.version>2.69</checklistbank-ws-client.version>
     <gbif-common.version>0.40</gbif-common.version>
     <gbif-httputils.version>0.10</gbif-httputils.version>
     <gbif-metadata-profile.version>1.1.1</gbif-metadata-profile.version>
-    <metrics-ws-client.version>0.26</metrics-ws-client.version>
-    <occurrence-ws-client.version>0.82</occurrence-ws-client.version>
     <registry-ws-client.version>2.85</registry-ws-client.version>
 
     <guava.version>18.0</guava.version>
@@ -53,21 +49,6 @@
       <groupId>org.gbif</groupId>
       <artifactId>gbif-common</artifactId>
       <version>${gbif-common.version}</version>
-    </dependency>
-    <dependency>
-      <groupId>org.gbif.occurrence</groupId>
-      <artifactId>occurrence-ws-client</artifactId>
-      <version>${occurrence-ws-client.version}</version>
-    </dependency>
-    <dependency>
-      <groupId>org.gbif.metrics</groupId>
-      <artifactId>metrics-ws-client</artifactId>
-      <version>${metrics-ws-client.version}</version>
-    </dependency>
-    <dependency>
-      <groupId>org.gbif.checklistbank</groupId>
-      <artifactId>checklistbank-ws-client</artifactId>
-      <version>${checklistbank-ws-client.version}</version>
     </dependency>
     <dependency>
       <groupId>org.gbif</groupId>

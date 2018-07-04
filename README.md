@@ -1,6 +1,18 @@
-# Watchdog
-Project functioning as a watchful guardian of content in the GBIF network, especially against datasets going offline.
+# IPT Batch Import
 
-**Browse the project's [wiki](https://github.com/kbraak/watchdog/wiki) to find out more.** 
+A Java "script" to semi-automate producing IPT data directories, for bulk imports of Darwin Core Archives into the IPT.
 
-**Browse the project's [issues](https://github.com/kbraak/watchdog/issues) to find out what's actively being worked on.** 
+## Usage
+
+You will need to edit the meta.xml and resource.ftl templates according to the structure of your data, and the
+email address and publishing organization key found in IptBulkImport.
+
+Then build the project:
+
+`mvn clean compile`
+
+Then run it using the script, with Darwin Core Archives as filenames:
+
+`./convert-dwca-to-ipt ~/4A9DDA1F-B879-3E13-E053-2614A8C02B7C.zip`
+
+And copy the resulting directory (with a reasonable new name) to your IPT's resource directory, and restart the IPT.

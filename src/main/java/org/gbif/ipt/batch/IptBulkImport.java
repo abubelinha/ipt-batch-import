@@ -1,5 +1,6 @@
-package org.gbif;
+package org.gbif.ipt.batch;
 
+import com.google.common.base.Strings;
 import com.google.inject.Guice;
 import com.google.inject.Injector;
 import freemarker.cache.ClassTemplateLoader;
@@ -8,33 +9,18 @@ import freemarker.template.Configuration;
 import freemarker.template.Template;
 import freemarker.template.TemplateException;
 import org.apache.commons.io.FileUtils;
-import org.apache.http.StatusLine;
-import org.apache.http.impl.client.DefaultHttpClient;
-import org.gbif.api.model.occurrence.Download;
-import org.gbif.api.model.occurrence.DownloadFormat;
-import org.gbif.api.model.occurrence.DownloadRequest;
-import org.gbif.api.model.occurrence.predicate.EqualsPredicate;
-import org.gbif.api.model.occurrence.search.OccurrenceSearchParameter;
-import org.gbif.api.model.registry.Dataset;
-import org.gbif.api.model.registry.Endpoint;
-import org.gbif.api.model.registry.MachineTag;
-import org.gbif.api.model.registry.Node;
+import org.apache.commons.io.FilenameUtils;
 import org.gbif.api.model.registry.Organization;
-import org.gbif.api.service.occurrence.DownloadRequestService;
 import org.gbif.api.service.registry.DatasetService;
 import org.gbif.api.service.registry.NodeService;
-import org.gbif.api.service.registry.OccurrenceDownloadService;
 import org.gbif.api.service.registry.OrganizationService;
-import org.gbif.api.vocabulary.EndpointType;
-import org.gbif.api.vocabulary.NodeType;
 import org.gbif.metadata.eml.Agent;
 import org.gbif.metadata.eml.Eml;
 import org.gbif.metadata.eml.EmlFactory;
 import org.gbif.metadata.eml.EmlWriter;
-import org.gbif.metadata.eml.PhysicalData;
-import org.gbif.utils.HttpUtil;
+import org.gbif.metadata.eml.GeospatialCoverage;
 import org.gbif.utils.file.CompressionUtil;
-import org.gbif.watchdog.config.WatchdogModule;
+import org.gbif.ipt.batch.config.IptBulkImportModule;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.xml.sax.SAXException;
@@ -44,51 +30,53 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.io.Writer;
-import java.net.URI;
-import java.net.URISyntaxException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.text.ParseException;
+import java.nio.file.Paths;
 import java.util.*;
-import java.util.function.Predicate;
-import java.util.regex.Pattern;
-import java.util.stream.Stream;
-
-import static org.gbif.DatasetRescuer.Mode.IPT_EXPORT;
-import static org.gbif.DatasetRescuer.Mode.RESCUE;
 
 /**
  */
-public class GbifFranceDatasetRescuer {
+public class IptBulkImport {
 
-  private static Logger LOG = LoggerFactory.getLogger(GbifFranceDatasetRescuer.class);
+  private static Logger LOG = LoggerFactory.getLogger(IptBulkImport.class);
 
-  private static final String RESCUED_EML = "eml.xml";
-  private static final String RESCUED_OCCURRENCE = "occurrence.txt";
-  private static final String RESCUED_META = "meta.xml";
-  private static final String RESCUED_META_PATH = "/frMeta.xml";
+  private static final Agent rescuer = new Agent();
 
-  private static final String IPT_RESOURCE_TEMPLATE = "resource.ftl";
-  private static final Configuration FTL = provideFreemarker();
+  // Change these if it's necessary to use a different template
+  private static final String SOURCE_DWCA_DATA = "data.txt";
+  private static final String META_TEMPLATE = "/gbifFranceMeta.xml";
+  private static final String RESOURCE_TEMPLATE = "gbifFranceResource.ftl";
+
+  // Change these according to the target IPT
+  static {
+    // This Agent's email address must be a user registered with the IPT.
+    // rescuer.setEmail("systems@gbif.org");
+    rescuer.setEmail("connexion@gbif.fr");
+  }
+  private static final UUID organizationKey = UUID.fromString("1928bdf0-f5d2-11dc-8c12-b8a03c50a862");
+
+  // You probably don't want to change these, they define the structure of the DwC-A and IPT resource derictory.
+  private static final String TARGET_EML = "eml.xml";
+  private static final String TARGET_OCCURRENCE = "occurrence.txt";
+  private static final String TARGET_META = "meta.xml";
   private static final String IPT_RESOURCE = "/resource.xml";
   private static final String IPT_SOURCES = "sources";
   private static final String VERSIONED_EML = "eml-1.0.xml";
   private static final String VERSIONED_DWCA = "dwca-1.0.zip";
 
-  DownloadRequestService downloadRequestService;
-  OccurrenceDownloadService occurrenceDownloadService;
-  DatasetService datasetService;
-  OrganizationService organizationService;
-  NodeService nodeService;
+  private static final Configuration FTL = provideFreemarker();
 
-  GbifFranceDatasetRescuer(DownloadRequestService occurrenceDownloadWsClient, OccurrenceDownloadService occurrenceDownloadService,
-                           DatasetService datasetService, OrganizationService organizationService, NodeService nodeService) throws IOException {
-    this.downloadRequestService = occurrenceDownloadWsClient;
-    this.occurrenceDownloadService = occurrenceDownloadService;
+  private final DatasetService datasetService;
+  private final OrganizationService organizationService;
+  private final NodeService nodeService;
+
+  IptBulkImport(DatasetService datasetService,
+                OrganizationService organizationService,
+                NodeService nodeService) {
     this.datasetService = datasetService;
     this.organizationService = organizationService;
     this.nodeService = nodeService;
@@ -98,24 +86,13 @@ public class GbifFranceDatasetRescuer {
   }
 
   /**
-   *
-   * @param datasetKey GBIF datasetKey (UUID)
    */
-  private void rescue(String datasetKey) throws IOException, ParserConfigurationException, SAXException, TemplateException, NoSuchFieldException {
+  private void rescue(Path sourceZip) throws IOException, ParserConfigurationException, SAXException, TemplateException, NoSuchFieldException {
 
-    String gbifFrKey = "4A9DDA1F-B879-3E13-E053-2614A8C02B7C";
-    datasetKey = gbifFrKey;
+    Organization organization = organizationService.get(organizationKey);
 
-    Agent rescuer = new Agent();
-//    rescuer.setEmail("systems@gbif.org");
-    rescuer.setEmail("connexion@gbif.fr");
-
-    Organization organization = organizationService.get(UUID.fromString("1928bdf0-f5d2-11dc-8c12-b8a03c50a862"));
-
-    File tmpDwca = new File("/home/mblissett/"+gbifFrKey+".zip");
-
-    Path tmpDecompressDir = Files.createTempDirectory("orphan-decompress-");
-    CompressionUtil.decompressFile(tmpDecompressDir.toFile(), tmpDwca, true);
+    Path tmpDecompressDir = Files.createTempDirectory("ipt-batch-decompress-");
+    CompressionUtil.decompressFile(tmpDecompressDir.toFile(), sourceZip.toFile(), true);
     LOG.info("Unzipped to: {}", tmpDecompressDir);
 
     // Open EML file
@@ -127,12 +104,18 @@ public class GbifFranceDatasetRescuer {
       throw new NoSuchFieldException("License must always be set!");
     }
 
-    eml.getGeospatialCoverages().get(0).setDescription("See map.");
+    // Set a geospatial description if necessary.
+    for (GeospatialCoverage gc : eml.getGeospatialCoverages()) {
+      if (Strings.isNullOrEmpty(gc.getDescription())) {
+        gc.setDescription("See map.");
+      }
+    }
 
-    // publishing organisation
-//    Agent publishingOrg = new Agent();
-//    publishingOrg.setOrganisation(organization.getTitle());
-
+//    if (check if we need to override the contacts in the EML){
+//      // publishing organisation
+//      Agent publishingOrg = new Agent();
+//      publishingOrg.setOrganisation(organization.getTitle());
+//
 //      // add up-to-date point of contact thereby also fulfilling minimum requirement
 //      eml.setContacts(Arrays.asList(rescuer));
 //
@@ -141,6 +124,7 @@ public class GbifFranceDatasetRescuer {
 //
 //      // add up-to-date metadata provider thereby also fulfilling minimum requirement
 //      eml.setMetadataProviders(Arrays.asList(rescuer));
+//    }
 
     // ensure specimen preservation methods are lowercase, otherwise IPT doesn't recognize method
     ListIterator<String> iterator = eml.getSpecimenPreservationMethods().listIterator();
@@ -148,37 +132,34 @@ public class GbifFranceDatasetRescuer {
       iterator.set(iterator.next().toLowerCase());
     }
 
-    {
-      // reset version to 1.0
-      eml.setEmlVersion(1, 0);
-    }
+    // reset version to 1.0
+    eml.setEmlVersion(1, 0);
 
     // make DwC-A folder
-    File dwcaFolder = Files.createTempDirectory("orphan-dwca-").toFile();
+    File dwcaFolder = Files.createTempDirectory("ipt-batch-result-dwca-").toFile();
 
     // write eml.xml file to DwC-A folder
-    File updatedEml = new File(dwcaFolder, RESCUED_EML);
+    File updatedEml = new File(dwcaFolder, TARGET_EML);
     EmlWriter.writeEmlFile(updatedEml, eml);
 
-    // retrieve verbatim.txt file, and copy to DwC-A folder
-    File rescuedOccurrence = new File(dwcaFolder, RESCUED_OCCURRENCE);
-    FileUtils.copyFile(new File(tmpDecompressDir.toFile(), "data.txt"), rescuedOccurrence);
+    // retrieve source data file, and copy to DwC-A folder
+    File rescuedOccurrence = new File(dwcaFolder, TARGET_OCCURRENCE);
+    FileUtils.copyFile(new File(tmpDecompressDir.toFile(), SOURCE_DWCA_DATA), rescuedOccurrence);
     long recordCount = FileUtils.readLines(rescuedOccurrence, StandardCharsets.UTF_8).size() - 1;
 
     // retrieve meta.xml file, and copy to DwC-A folder
-    File rescuedMeta = new File(dwcaFolder, RESCUED_META);
-    FileUtils.copyInputStreamToFile(GbifFranceDatasetRescuer.class.getResourceAsStream(RESCUED_META_PATH), rescuedMeta);
+    File rescuedMeta = new File(dwcaFolder, TARGET_META);
+    FileUtils.copyInputStreamToFile(IptBulkImport.class.getResourceAsStream(META_TEMPLATE), rescuedMeta);
 
     // make IPT resource directory
-    File iptResourceDir = new File("/home/mblissett/gbif.fr/", datasetKey);
+    File iptResourceDir = sourceZip.resolveSibling("IPT-"+ FilenameUtils.removeExtension(sourceZip.getFileName().toString())).toFile();
     iptResourceDir.mkdir();
 
     {
       // upload to IPT
 
-      // ensure publishing organisation set (prerequisite being the organisation and user informatics@gbif.org must be added to the IPT before it can be loaded)
+      // ensure publishing organisation set (prerequisite being the organisation and user must be added to the IPT before it can be loaded)
       // ensure auto-generation of citation turned on
-      // make its visibility registered by default
       File resourceXml = new File(iptResourceDir, IPT_RESOURCE);
       writeIptResourceFile(resourceXml, organization.getKey(), rescuer, rescuedOccurrence.length(), recordCount);
 
@@ -186,11 +167,11 @@ public class GbifFranceDatasetRescuer {
       File sources = new File(iptResourceDir, IPT_SOURCES);
       sources.mkdir();
 
-      // retrieve verbatim.txt file, and copy to IPT sources folder
-      FileUtils.copyFile(rescuedOccurrence, new File(sources, RESCUED_OCCURRENCE));
+      // retrieve source data file, and copy to IPT sources folder
+      FileUtils.copyFile(rescuedOccurrence, new File(sources, TARGET_OCCURRENCE));
 
       // write eml.xml file to IPT resource folder
-      File iptEml = new File(iptResourceDir, RESCUED_EML);
+      File iptEml = new File(iptResourceDir, TARGET_EML);
       EmlWriter.writeEmlFile(iptEml, eml);
 
       // write eml.xml file version 1.0 to IPT resource folder
@@ -209,22 +190,19 @@ public class GbifFranceDatasetRescuer {
   }
 
   public static void main(String... args)
-    throws ParseException, IOException, ParserConfigurationException, SAXException, TemplateException,
-    NoSuchFieldException, InterruptedException, URISyntaxException {
-    Injector injector = Guice.createInjector(new WatchdogModule());
-    GbifFranceDatasetRescuer rescuer = new GbifFranceDatasetRescuer(injector.getInstance(DownloadRequestService.class),
-      injector.getInstance(OccurrenceDownloadService.class), injector.getInstance(DatasetService.class),
+    throws IOException, ParserConfigurationException, SAXException, TemplateException, NoSuchFieldException {
+    Injector injector = Guice.createInjector(new IptBulkImportModule());
+    IptBulkImport rescuer = new IptBulkImport(injector.getInstance(DatasetService.class),
       injector.getInstance(OrganizationService.class), injector.getInstance(NodeService.class));
 
-//    if (args.length < 1) {
-//      System.err.println("Give dataset keys as argument");
-//      System.exit(1);
-//    }
-//
-//    for (String datasetKey : args) {
-//      rescuer.rescue(datasetKey);
-//    }
-    rescuer.rescue("x");
+    if (args.length < 1) {
+      System.err.println("Give dataset keys as argument");
+      System.exit(1);
+    }
+
+    for (String path : args) {
+      rescuer.rescue(Paths.get(path));
+    }
   }
 
   /**
@@ -237,11 +215,11 @@ public class GbifFranceDatasetRescuer {
     map.put("occurrenceFileSize", occurrenceFileSize);
     map.put("created", new Date());
     map.put("totalRecords", totalRecords);
-    writeFile(f, "frResource.ftl", map);
+    writeFile(f, RESOURCE_TEMPLATE, map);
   }
 
   /**
-   * Writes a map of data to a utf8 encoded file using a Freemarker {@link Configuration}.
+   * Writes a map of data to a UTF-8 encoded file using a Freemarker {@link Configuration}.
    */
   private void writeFile(File f, String template, Object data) throws IOException, TemplateException {
     String result = processTemplateIntoString(FTL.getTemplate(template), data);
@@ -260,7 +238,7 @@ public class GbifFranceDatasetRescuer {
    * Provides a freemarker template loader. It is configured to access the UTF-8 IPT folder on the classpath.
    */
   private static Configuration provideFreemarker() {
-    TemplateLoader tl = new ClassTemplateLoader(GbifFranceDatasetRescuer.class, "/ipt");
+    TemplateLoader tl = new ClassTemplateLoader(IptBulkImport.class, "/ipt");
     Configuration fm = new Configuration();
     fm.setDefaultEncoding("utf8");
     fm.setTemplateLoader(tl);
