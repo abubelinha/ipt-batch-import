@@ -145,7 +145,7 @@ public class IptBulkImport {
     // retrieve source data file, and copy to DwC-A folder
     File rescuedOccurrence = new File(dwcaFolder, TARGET_OCCURRENCE);
     FileUtils.copyFile(new File(tmpDecompressDir.toFile(), SOURCE_DWCA_DATA), rescuedOccurrence);
-    long recordCount = FileUtils.readLines(rescuedOccurrence, StandardCharsets.UTF_8).size() - 1;
+    long recordCount = Files.lines(rescuedOccurrence.toPath(), StandardCharsets.UTF_8).count() - 1;
 
     // retrieve meta.xml file, and copy to DwC-A folder
     File rescuedMeta = new File(dwcaFolder, TARGET_META);
