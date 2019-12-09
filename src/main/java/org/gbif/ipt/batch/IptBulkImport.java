@@ -47,7 +47,7 @@ public class IptBulkImport {
   private static final Agent rescuer = new Agent();
 
   // Change these if it's necessary to use a different template
-  private static final String SOURCE_DWCA_DATA = "data.txt";
+  private static final String SOURCE_DWCA_DATA = "Occurence.txt";
   private static final String META_TEMPLATE = "/gbifFranceMeta.xml";
   private static final String RESOURCE_TEMPLATE = "gbifFranceResource.ftl";
 
@@ -55,7 +55,7 @@ public class IptBulkImport {
   static {
     // This Agent's email address must be a user registered with the IPT.
     // rescuer.setEmail("systems@gbif.org");
-    rescuer.setEmail("connexion@gbif.fr");
+    rescuer.setEmail("dev@gbif.fr");
   }
   private static final UUID organizationKey = UUID.fromString("1928bdf0-f5d2-11dc-8c12-b8a03c50a862");
 
@@ -134,6 +134,13 @@ public class IptBulkImport {
 
     // reset version to 1.0
     eml.setEmlVersion(1, 0);
+
+    // GBIF FRANCE set default abstract if needed
+    if (eml.getAbstract().isEmpty()) {
+      List<String> abstr = new ArrayList<String>();
+      abstr.add("Default abstract");
+      eml.setAbstract(abstr);
+    }
 
     // make DwC-A folder
     File dwcaFolder = Files.createTempDirectory("ipt-batch-result-dwca-").toFile();
