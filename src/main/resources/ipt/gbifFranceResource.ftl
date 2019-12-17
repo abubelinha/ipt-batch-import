@@ -19,6 +19,9 @@
     <modified>${created?datetime}</modified>
     <metadataModified>${created?datetime}</metadataModified>
     <mappingsModified>${created?datetime}</mappingsModified>
+    <#if key != "">
+      <key>${key}</key>
+    </#if>
     <managers/>
     <sources>
         <filesource>

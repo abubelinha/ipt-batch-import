@@ -10,6 +10,7 @@ import freemarker.template.Template;
 import freemarker.template.TemplateException;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.FilenameUtils;
+import org.apache.commons.validator.routines.EmailValidator;
 import org.gbif.api.model.registry.Organization;
 import org.gbif.api.service.registry.DatasetService;
 import org.gbif.api.service.registry.NodeService;
@@ -37,6 +38,8 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.*;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 /**
  */
@@ -50,6 +53,7 @@ public class IptBulkImport {
   private static final String SOURCE_DWCA_DATA = "Occurence.txt";
   private static final String META_TEMPLATE = "/gbifFranceMeta.xml";
   private static final String RESOURCE_TEMPLATE = "gbifFranceResource.ftl";
+  private static final String RESOURCE_TEMPLATE_WITHOUT_KEY = "gbifFranceResourceWithoutKey.ftl";
 
   // Change these according to the target IPT
   static {
@@ -89,6 +93,10 @@ public class IptBulkImport {
    */
   private void rescue(Path sourceZip) throws IOException, ParserConfigurationException, SAXException, TemplateException, NoSuchFieldException {
 
+    String uuid = FilenameUtils.removeExtension(sourceZip.getFileName().toString());
+
+    String gbifIdentifier = GBIFIdentifierMap.identifiers.get(uuid);
+
     Organization organization = organizationService.get(organizationKey);
 
     Path tmpDecompressDir = Files.createTempDirectory("ipt-batch-decompress-");
@@ -109,6 +117,45 @@ public class IptBulkImport {
       if (Strings.isNullOrEmpty(gc.getDescription())) {
         gc.setDescription("See map.");
       }
+    }
+
+    // add GBIF key
+    if (gbifIdentifier != null) {
+      eml.getAlternateIdentifiers().add(gbifIdentifier);
+    }
+
+    // add description if needed
+    List<String> description = eml.getAbstract();
+    if (description == null) {
+        description = new LinkedList<String>();
+        description.add(eml.getTitle());
+        eml.setAbstract(description);
+    }
+    else {
+        boolean isEmpty = true;
+        for(String s: description) {
+            if ((s != null) && !s.equals("")) {
+                isEmpty = false;
+            }
+        }
+        if (isEmpty) {
+            description.add(eml.getTitle());
+            eml.setAbstract(description);
+        }
+    }
+
+    // Check emails
+    for (Agent agent: eml.getCreators()) {
+        cleanEmailIfNeeded(agent);
+    }
+    for (Agent agent: eml.getAssociatedParties()) {
+        cleanEmailIfNeeded(agent);
+    }
+    for (Agent agent: eml.getContacts()) {
+        cleanEmailIfNeeded(agent);
+    }
+    for (Agent agent: eml.getMetadataProviders()) {
+        cleanEmailIfNeeded(agent);
     }
 
 //    if (check if we need to override the contacts in the EML){
@@ -159,7 +206,8 @@ public class IptBulkImport {
     FileUtils.copyInputStreamToFile(IptBulkImport.class.getResourceAsStream(META_TEMPLATE), rescuedMeta);
 
     // make IPT resource directory
-    File iptResourceDir = sourceZip.resolveSibling("IPT-"+ FilenameUtils.removeExtension(sourceZip.getFileName().toString())).toFile();
+    Path results = Paths.get("results");
+    File iptResourceDir = results.resolve("IPT-" + uuid).toFile();
     iptResourceDir.mkdir();
 
     {
@@ -168,7 +216,7 @@ public class IptBulkImport {
       // ensure publishing organisation set (prerequisite being the organisation and user must be added to the IPT before it can be loaded)
       // ensure auto-generation of citation turned on
       File resourceXml = new File(iptResourceDir, IPT_RESOURCE);
-      writeIptResourceFile(resourceXml, organization.getKey(), rescuer, rescuedOccurrence.length(), recordCount);
+      writeIptResourceFile(resourceXml, organization.getKey(), rescuer, rescuedOccurrence.length(), recordCount, gbifIdentifier);
 
       // make sources folder in IPT resource folder
       File sources = new File(iptResourceDir, IPT_SOURCES);
@@ -196,6 +244,13 @@ public class IptBulkImport {
     FileUtils.deleteDirectory(dwcaFolder);
   }
 
+  private void cleanEmailIfNeeded(Agent agent) {
+      EmailValidator validator = EmailValidator.getInstance();
+      if (!validator.isValid(agent.getEmail())) {
+        agent.setEmail(null);
+    }
+  }
+
   public static void main(String... args)
     throws IOException, ParserConfigurationException, SAXException, TemplateException, NoSuchFieldException {
     Injector injector = Guice.createInjector(new IptBulkImportModule());
@@ -207,21 +262,32 @@ public class IptBulkImport {
       System.exit(1);
     }
 
-    for (String path : args) {
-      rescuer.rescue(Paths.get(path));
+    String path = args[0];
+    File[] files = new File(path).listFiles();
+
+    for (File f : files) {
+      rescuer.rescue(f.toPath());
     }
+  }
+
+  public Set<String> listFilesUsingJavaIO(String dir) {
+    return Stream.of(new File(dir).listFiles())
+            .filter(file -> !file.isDirectory())
+            .map(File::getName)
+            .collect(Collectors.toSet());
   }
 
   /**
    * Writes an {@link Eml} object to an XML file using a Freemarker {@link Configuration}.
    */
-  private void writeIptResourceFile(File f, UUID publishingOrganizationKey, Agent rescuer, long occurrenceFileSize, long totalRecords) throws IOException, TemplateException {
+  private void writeIptResourceFile(File f, UUID publishingOrganizationKey, Agent rescuer, long occurrenceFileSize, long totalRecords, String key) throws IOException, TemplateException {
     Map<String, Object> map = new HashMap();
     map.put("publishingOrganizationKey", publishingOrganizationKey);
     map.put("rescuer", rescuer);
     map.put("occurrenceFileSize", occurrenceFileSize);
     map.put("created", new Date());
     map.put("totalRecords", totalRecords);
+    map.put("key", (key != null) ? key : "");
     writeFile(f, RESOURCE_TEMPLATE, map);
   }
 
