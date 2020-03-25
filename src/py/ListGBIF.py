@@ -12,7 +12,7 @@ import zipfile
 def getDataset():
     urlGBIF = 'http://api.gbif.org/v1/organization/1928bdf0-f5d2-11dc-8c12-b8a03c50a862/publishedDataset'
 
-    out = open("output/GBIF8.csv", "a")
+    out = open("output/GBIF.csv", "a")
 
     check = []
 
@@ -102,10 +102,10 @@ def getFileDataset():
 
 def reconcil():
 
-    out = open("output/GBIF8c.csv", "a")
+    out = open("output/GBIF-reconcil.csv", "a")
 
     drDiffuser = {}
-    with open("output/SAVE/DIFFUSER.csv", newline='') as csvfile:
+    with open("output/DIFFUSER.csv", newline='') as csvfile:
         csv_reader = csv.reader(csvfile, delimiter=';')
         csv_rows = list(csv_reader)
 
@@ -113,7 +113,7 @@ def reconcil():
             drDiffuser[row[0]] = row[1]
 
     drMaj = {}
-    with open("output/SAVE/MAJ.csv", newline='') as csvfile:
+    with open("output/MAJ.csv", newline='') as csvfile:
         csv_reader = csv.reader(csvfile, delimiter=';')
         csv_rows = list(csv_reader)
 
@@ -123,7 +123,7 @@ def reconcil():
     drDiffuserFound = []
     drMajFound = []
 
-    with open("output/GBIF8.csv", newline='') as csvfile:
+    with open("output/GBIF.csv", newline='') as csvfile:
             csv_reader = csv.reader(csvfile, delimiter=';')
             csv_rows = list(csv_reader)
 
@@ -227,8 +227,8 @@ def createPython2():
 
 
 def main():
-    getDataset()
-    reconcil()
+    #getDataset()
+    #reconcil()
 
 if __name__ == "__main__":
     main()
