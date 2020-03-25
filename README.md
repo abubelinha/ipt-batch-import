@@ -11,8 +11,27 @@ Then build the project:
 
 `mvn clean compile`
 
-Then run it using the script, with Darwin Core Archives as filenames:
+Then run it using the script:
 
-`./convert-dwca-to-ipt ~/4A9DDA1F-B879-3E13-E053-2614A8C02B7C.zip`
+`./convert-dwca-to-ipt /path/to/my/datasets`
 
-And copy the resulting directory (with a reasonable new name) to your IPT's resource directory, and restart the IPT.
+where `/path/to/my/datasets` is the path containing the DwC archives
+
+The results will be available in the `./results` folder
+ 
+Then, copy the resulting directories (with reasonable new names) to your IPT's resource directory, and restart the IPT.
+
+## Docker
+
+Build the Docker image:
+
+`docker build -t ipt-batch-import .`
+
+Execute the batch import:
+
+`docker run -ti -v /path/to/my/datasets:/dataset -v /path/to/my/results:/result ipt-batch-import`
+
+where `/path/to/my/datasets` is the host path containing the DwC archives
+and `path/to/my/results` is the host path where the results will be written
+by the docker container 
+

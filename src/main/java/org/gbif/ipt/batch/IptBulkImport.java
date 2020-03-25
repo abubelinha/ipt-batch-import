@@ -266,6 +266,7 @@ public class IptBulkImport {
     File[] files = new File(path).listFiles();
 
     for (File f : files) {
+      LOG.info("File: " + f.toPath().toString());
       rescuer.rescue(f.toPath());
     }
   }
