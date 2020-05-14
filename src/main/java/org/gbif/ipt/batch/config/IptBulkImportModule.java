@@ -1,6 +1,7 @@
 package org.gbif.ipt.batch.config;
 
 import com.google.inject.AbstractModule;
+import org.gbif.ipt.batch.GBIFIdentifierMap;
 import org.gbif.registry.ws.client.guice.RegistryWsClientModule;
 import org.gbif.utils.file.properties.PropertiesUtil;
 import org.gbif.ws.client.guice.AnonymousAuthModule;

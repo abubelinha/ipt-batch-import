@@ -14,9 +14,8 @@ RUN mkdir /app/results
 
 RUN ln -s /app/results /result
 
+VOLUME /identifiers.csv
 VOLUME /dataset
 VOLUME /result
 
-RUN /app/convert-dwca-to-ipt /dataset
-
-CMD ["/app/convert-dwca-to-ipt", "/dataset"]
+ENTRYPOINT ["/app/convert-dwca-to-ipt", "/dataset"]

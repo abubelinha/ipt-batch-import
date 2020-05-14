@@ -29,9 +29,10 @@ Build the Docker image:
 
 Execute the batch import:
 
-`docker run -ti -v /path/to/my/datasets:/dataset -v /path/to/my/results:/result ipt-batch-import`
+`
+`
 
-where `/path/to/my/datasets` is the host path containing the DwC archives
-and `path/to/my/results` is the host path where the results will be written
-by the docker container 
+* `/path/to/my/datasets` is the host path containing the DwC archives
+* `/path/to/my/results` is the host path where the results will be written by the docker container 
+* `/path/to/my/identifiers.csv` is the host path of the identifiers.csv file containing the GBIF UUID
 

@@ -95,7 +95,14 @@ public class IptBulkImport {
 
     String uuid = FilenameUtils.removeExtension(sourceZip.getFileName().toString());
 
-    String gbifIdentifier = GBIFIdentifierMap.identifiers.get(uuid);
+    String gbifIdentifier = GBIFIdentifierMap.find(uuid);
+
+    if (gbifIdentifier != null) {
+      LOG.info("["+uuid+"] UPDATED with GBIF UUID ["+gbifIdentifier+"]");
+    }
+    else {
+      LOG.info("["+uuid+"] NEW");
+    }
 
     Organization organization = organizationService.get(organizationKey);
 
@@ -260,6 +267,10 @@ public class IptBulkImport {
     if (args.length < 1) {
       System.err.println("Give dataset keys as argument");
       System.exit(1);
+    }
+
+    if (!GBIFIdentifierMap.init()) {
+      return;
     }
 
     String path = args[0];
