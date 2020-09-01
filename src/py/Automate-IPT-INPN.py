@@ -11,7 +11,7 @@ import time
 
 IPT_URL             = 'http://ipt-inpn.gbif.fr/'
 IPT_USER            = 'sylvain.morin@mnhn.fr'
-IPT_PWD             = 'Morin2019!'
+IPT_PWD             = ''
 UUID_FILE           = '/workspace/ipt-batch-import-inpn/uuid'
 
 uidList = []
@@ -24,18 +24,6 @@ with open(UUID_FILE, newline='') as csvfile:
 
 for uid in uidList:
     print(uid)
-
-def load(path, drList):
-    dsList = [f for f in glob.glob(path+"*")]
-    for ds in dsList:
-        name = os.path.splitext(ds)[0][len(path)::]
-        drList.append(name)
-
-def loadDR():
-    global DIFFUSERList
-    load("/workspace/ipt-batch-import-inpn/results/DIFFUSER/", DIFFUSERList)
-    global MAJList
-    load("/workspace/ipt-batch-import-inpn/results/MAJ/", MAJList)
 
 def publishAll():
     session = __login()
@@ -76,5 +64,6 @@ def __login():
     return session
 
 if __name__ == "__main__":
+    print("Automate...")
     #publishAll()
-    registerAll()
+    #registerAll()
