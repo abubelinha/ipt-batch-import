@@ -36,7 +36,7 @@ public class GBIFIdentifierMap {
                 String row = sc.nextLine();
                 String[] cells = row.split(";");
                 // IPT UUID / GBIF UUID
-                identifiers.put(cells[5], cells[0]);
+                identifiers.put(cells[1], cells[0]);
             }
             sc.close();
 
