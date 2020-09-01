@@ -1,22 +1,29 @@
-import os
-import glob
-import logging
-import datetime
-#import yaml
 import csv
-import re
-import numpy as np
 import requests
-import zipfile
 
-GBIF_FILE = "output/GBIF-2020-05-13-after.csv"
-IPT_FILE = "output/IPT_2020-05-13-after.csv"
-OUTPUT_FILE = "output/reconcil-2020-05-13-after.csv"
+GBIF_FILE = "output/GBIF-2020-09-01.csv"
+IPT_FILE = "output/IPT_2020-09-01.csv"
+RECONCIL_FILE = "output/reconcil-2020-09-01.csv"
 
+# Generate GBIF_FILE from GBIF API
 def getPatrinatDatasetGBIF():
     urlGBIF = 'http://api.gbif.org/v1/organization/1928bdf0-f5d2-11dc-8c12-b8a03c50a862/publishedDataset'
 
-    out = open(GBIF_FILE, "a")
+    out = open(GBIF_FILE, "w")
+    out.write("UID_GBIF")
+    out.write(";")
+    out.write("UID_IPT")
+    out.write(";")
+    out.write("TITLE")
+    out.write(";")
+    out.write("CREATED_DATE")
+    out.write(";")
+    out.write("MODIFIED_DATE")
+    out.write(";")
+    out.write("COUNT_GBIF")
+    out.write(";")
+    out.write("URL_IPT")
+    out.write("\n")
 
     check = []
 
@@ -75,7 +82,7 @@ def getPatrinatDatasetGBIF():
             recordCount = responseCount.text
 
             iptId = url[(url.rfind('=')+1)::]
-            out.write(key+";"+title+";"+created+";"+modified+";"+str(recordCount)+";"+iptId+";"+url+"\n")
+            out.write(key+";"+iptId+";"+title+";"+created+";"+modified+";"+str(recordCount)+";"+url+"\n")
 
         if data['endOfRecords']:
             break
@@ -84,8 +91,9 @@ def getPatrinatDatasetGBIF():
 
     out.close()
 
+# Generate RECONCIL_FILE by reconciliating IPT_FILE and GBIF_FILE
 def reconcil():
-    out = open(OUTPUT_FILE, "w")
+    out = open(RECONCIL_FILE, "w")
     out.write("UID_GBIF")
     out.write(";")
     out.write("TITLE")
@@ -122,7 +130,7 @@ def reconcil():
             csv_rows = list(csv_reader)
 
             for row in csv_rows:
-                id = row[5]
+                id = row[1]
                 count = ""
                 diff = ""
                 if (id in uidList):
@@ -130,20 +138,20 @@ def reconcil():
                     count = int(uidList[id])
                     diff = int(count) - int(row[4])
                     drFound.append(id)
-                    out.write(row[0]+";"+row[1]+";"+row[2]+";"+row[3]+";"+action+";"+row[4]+";"+row[5]+";"+row[6]+";"+str(count)+";"+str(diff)+"\n")
+                    out.write(row[0]+";"+row[1]+";"+row[2]+";"+row[3]+";"+row[4]+";"+action+";"+row[5]+";"+row[6]+";"+str(count)+";"+str(diff)+"\n")
                 else:
-                    out.write(row[0]+";"+row[1]+";"+row[2]+";"+row[3]+";NOT FOUND;"+row[4]+";"+row[5]+";"+row[6]+";;\n")
+                    out.write(row[0]+";"+row[1]+";"+row[2]+";"+row[3]+";"+row[4]+";NOT FOUND;"+row[5]+";"+row[6]+";;\n")
 
             for id in uidList:
                 if (id not in drFound):
                     count = int(uidList[id])
-                    out.write(";;;;NOT_FOUND;;"+id+";;"+str(count)+";\n")
+                    out.write(";"+id+";;;;NOT_FOUND;;;"+str(count)+";\n")
 
     out.close()
 
 def main():
     getPatrinatDatasetGBIF()
-    reconcil()
+    #reconcil()
 
 if __name__ == "__main__":
     main()
