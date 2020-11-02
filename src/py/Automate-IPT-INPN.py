@@ -1,29 +1,13 @@
-import os
-import glob
-import logging
-import datetime
-#import yaml
 import csv
-import re
 import requests
-import zipfile
 import time
 
 IPT_URL             = 'http://ipt-inpn.gbif.fr/'
-IPT_USER            = 'sylvain.morin@mnhn.fr'
+IPT_USER            = ''
 IPT_PWD             = ''
 UUID_FILE           = '/workspace/ipt-batch-import-inpn/uuid'
 
 uidList = []
-
-with open(UUID_FILE, newline='') as csvfile:
-    csv_reader = csv.reader(csvfile, delimiter=';')
-    csv_rows = list(csv_reader)
-    for row in csv_rows:
-        uidList.append(row[0])
-
-for uid in uidList:
-    print(uid)
 
 def publishAll():
     session = __login()
@@ -65,5 +49,16 @@ def __login():
 
 if __name__ == "__main__":
     print("Automate...")
+
+    print("Read UUID file: "+UUID_FILE)
+    with open(UUID_FILE, newline='') as csvfile:
+        csv_reader = csv.reader(csvfile, delimiter=';')
+        csv_rows = list(csv_reader)
+        for row in csv_rows:
+            uidList.append(row[0])
+
+    for uid in uidList:
+        print(uid)
+
     #publishAll()
     #registerAll()
