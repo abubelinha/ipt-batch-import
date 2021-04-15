@@ -207,10 +207,15 @@
             <type>string</type>
           </field>
           <field>
-          <index>12</index>
+            <index>12</index>
             <term>http://rs.tdwg.org/dwc/terms/taxonID</term>
             <type>string</type>
           </field>
+            <field>
+                <index>33</index>
+                <term>http://rs.tdwg.org/dwc/terms/occurrenceRemarks</term>
+                <type>string</type>
+            </field>
         </fields>
         <idColumn>0</idColumn>
         <idSuffix></idSuffix>

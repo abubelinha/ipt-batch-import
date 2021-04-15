@@ -290,7 +290,7 @@ public class IptBulkImport {
   }
 
   /**
-   * Writes an {@link Eml} object to an XML file using a Freemarker {@link Configuration}.
+   * Writes the resource.xml file
    */
   private void writeIptResourceFile(File f, UUID publishingOrganizationKey, Agent rescuer, long occurrenceFileSize, long totalRecords, String key) throws IOException, TemplateException {
     Map<String, Object> map = new HashMap();

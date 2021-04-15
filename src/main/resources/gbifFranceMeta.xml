@@ -37,6 +37,7 @@
     <field index="30" term="http://rs.tdwg.org/dwc/terms/associatedReferences"/>
     <field index="31" term="http://rs.tdwg.org/dwc/terms/dataGeneralizations"/>
     <field index="32" term="http://rs.tdwg.org/dwc/terms/identificationVerificationStatus"/>
+    <field index="33" term="http://rs.tdwg.org/dwc/terms/occurrenceRemarks"/>
     <field default="WGS84" term="http://rs.tdwg.org/dwc/terms/geodeticDatum"/>
   </core>
 
