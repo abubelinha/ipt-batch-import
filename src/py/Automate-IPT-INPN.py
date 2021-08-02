@@ -29,6 +29,10 @@ def publish(dr, session):
             if responseReport.status_code == 200:
                 print ("waiting...")
                 if ("<divclass=\"completed\">" in responseReport.text):
+                    # when dr is a DATA resource
+                    return
+                elif ("<h4>Finished<h4>" in responseReport.text):
+                    # when dr is a METADATA resource
                     return
                 time.sleep(0.5)
             else:
