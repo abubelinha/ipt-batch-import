@@ -30,6 +30,8 @@ def publish(dr, session):
                 print ("waiting...")
                 if ("<divclass=\"completed\">" in responseReport.text):
                     return
+                elif ("<h4>Finished<h4>" in responseReport.text): # just in case dr is a metadata-only resource
+                    return
                 time.sleep(0.5)
             else:
                 return
